@@ -6,6 +6,8 @@
 .tribes{grid-template-columns:repeat(2,minmax(0,1fr));gap:26px}.kidlat{--accent:#f5cf42}.lakas{--accent:#d6d7da}.art{height:clamp(260px,37vw,440px)}.art img{height:100%;object-fit:cover;object-position:center top}.lakas{background:#29231f}.lakas .art:after{background:linear-gradient(transparent 75%,#29231f)}.kidlat .art:after{background:linear-gradient(transparent 75%,#1d2420)}@media(max-width:480px){.tribes{grid-template-columns:1fr}.art{height:310px}.art img{margin-top:0}}
 
 #draw-window{color:#f5f1e6;background:radial-gradient(ellipse at top,#3b3522,#141c17 65%);border:1px solid #ebbf7066;border-radius:12px;padding:28px;width:min(1000px,94vw);max-height:90vh;overflow:auto;box-shadow:0 30px 140px #000c}#draw-window::backdrop{background:#050a08df;backdrop-filter:blur(8px)}.reveal-header{display:flex;align-items:center;justify-content:space-between;gap:18px}.reveal-header h2{font:normal clamp(23px,3vw,35px) Georgia,serif;margin:10px 0}.reveal-header button{white-space:nowrap}#reveal-status{color:var(--gold);min-height:24px}#scramble-names{display:flex;flex-wrap:wrap;gap:9px;align-content:center;justify-content:center;min-height:140px;max-height:30vh;overflow:auto;padding:20px 8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.scramble-chip,.flying-name{display:inline-block;padding:10px 14px;border:1px solid #ebbf7055;background:#30372a;border-radius:5px;font-weight:600;overflow-wrap:anywhere;max-width:100%}.scramble-chip{animation:nameJostle .36s ease-in-out both}.scramble-chip.selected-name{background:var(--gold);color:#211b0f;box-shadow:0 0 24px #ebbf7088;animation:selectedPulse .65s ease-in-out}.reveal-teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}.reveal-team{--accent:#f5cf42;border:1px solid #ffffff20;border-top:3px solid var(--accent);border-radius:6px;padding:15px;background:#1d2420;min-width:0}.reveal-team.lakas{--accent:#d6d7da;background:#29231f}.reveal-team h3{color:var(--accent);letter-spacing:2px;margin:0 0 14px;font-family:Georgia,serif}.reveal-team h3 span{float:right;font:14px Segoe UI,sans-serif}.reveal-team ol{list-style:none;padding:0;margin:0}.reveal-team li{padding:9px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.receiving{box-shadow:0 0 22px color-mix(in srgb,var(--accent) 25%,transparent)}.flying-name{position:fixed;z-index:5;pointer-events:none;background:var(--gold);color:#211b0f}.landed{animation:landName .6s ease-out}dialog~#sparks{z-index:0}@keyframes nameJostle{from{opacity:.5;transform:translateY(-7px) rotate(var(--tilt))}to{opacity:1;transform:translateY(0) rotate(0)}}@keyframes selectedPulse{50%{transform:scale(1.08)}}@keyframes landName{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}@media(max-width:600px){#draw-window{padding:18px}.reveal-header{align-items:flex-start}.reveal-header button{padding:10px;font-size:12px}.reveal-teams{gap:10px}.reveal-team{padding:10px}.scramble-chip{font-size:13px;padding:8px}.reveal-team h3{font-size:16px}}
+
+#scramble-names{display:block;position:relative;height:168px;min-height:168px;max-height:168px;padding:56px 40px;overflow:hidden;background:linear-gradient(#080e0a,#283022 48%,#080e0a);perspective:500px}#scramble-names:before{content:'';position:absolute;inset:56px 15px;z-index:2;border:1px solid #ebbf7088;border-radius:5px;box-shadow:0 -65px 35px #0b120ed9,0 65px 35px #0b120ed9;pointer-events:none}#scramble-names:after{content:'▸';position:absolute;left:20px;top:67px;font-size:26px;color:var(--gold);z-index:3}.wheel-name{height:56px;display:flex;align-items:center;justify-content:center;text-align:center;font:600 22px Segoe UI,sans-serif;color:#f5f1e6;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.wheel-reel{will-change:transform}.flying-name{text-align:center}.scramble-chip{animation:none}
 </style></head>
 <body><main><header><div class="brand"><span class="compass">✦</span><div>ODYSSEY <span>SURVIVOR PILIPINAS</span></div></div><span class="edition">THE TURNING POINT</span></header>
 <section class="intro"><div><p class="eyebrow">A NEW CHAPTER. TWO TRIBES.</p><h1>The game changes here.</h1></div><p>New colors. New alliances.<br>Let fate choose your next chapter.</p></section>
@@ -28,30 +30,43 @@ function invalidate(){teams=[[],[]];renderTeams();$('draw').innerHTML='<span>✦
 function addPlayers(raw){if(drawing)throw Error('Wait for the draw to finish.');if(typeof raw!=='string')throw Error('Enter player names as text.');const names=raw.split(/[,\n\r]+/).map(s=>s.trim()).filter(Boolean);if(!names.length)throw Error('Enter at least one player name.');if(names.some(n=>n.length>80))throw Error('Please keep each name under 81 characters.');if(names.length+players.length>300)throw Error('The pool can hold up to 300 players.');names.forEach(name=>players.push({id:nextId++,name}));invalidate();return {count:players.length}}
 function removePlayer(id){if(drawing)throw Error('Wait for the draw to finish.');if(!players.some(p=>p.id===id))throw Error('Player not found.');players=players.filter(p=>p.id!==id);invalidate()}
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-function scrambleNames(remaining){const box=$('scramble-names');box.replaceChildren();shuffle(remaining).forEach(p=>{const chip=document.createElement('span');chip.className='scramble-chip';chip.dataset.playerId=p.id;chip.textContent=p.name;chip.style.setProperty('--tilt',((p.id%5)-2)*2+'deg');box.append(chip)})}
+function wheelNames(remaining,selected,reduced,duration){
+ const box=$('scramble-names');box.replaceChildren();const reel=document.createElement('div');reel.className='wheel-reel';
+ const sequence=[];for(let lap=0;lap<4;lap++)sequence.push(...shuffle(remaining));sequence.push(selected);
+ for(const player of sequence){const row=document.createElement('div');row.className='wheel-name';row.textContent=player.name;reel.append(row)}
+ box.append(reel);const end=-(sequence.length-1)*56;
+ const animation=reel.animate([{transform:'translateY(0)'},{transform:'translateY('+end+'px)'}],{duration:reduced?1:duration,easing:'cubic-bezier(.16,.65,.3,1)',fill:'forwards'});
+ return {animation,source:reel.lastElementChild};
+}
+let drawAudioContext;
 async function draw(){
  if(drawing||!players.length||players.length%2)throw Error('Add an even number of players and wait for any current draw to finish.');
  const schedule=shuffle(allocate(players)),remaining=[...players],modal=$('draw-window'),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- drawing=true;teams=[[],[]];renderTeams();renderPool();$('draw').textContent='The names are spinning…';
+ drawing=true;teams=[[],[]];renderTeams();renderPool();$('draw').textContent='The wheel is spinning…';
  for(let i=0;i<2;i++){$('reveal-team-'+i).replaceChildren();$('reveal-count-'+i).textContent='0'}
- $('reveal-title').textContent='Fate is shuffling the castaways';$('reveal-status').textContent='Every name. A new beginning.';$('close-reveal').disabled=true;$('close-reveal').textContent='Drawing…';
- scrambleNames(remaining);modal.showModal();let shuffler;
- const music=$('draw-music');music.currentTime=0;const playing=music.play();if(playing)playing.catch(()=>{});
+ $('reveal-title').textContent='Let the wheel decide';$('reveal-status').textContent='Preparing the draw…';$('close-reveal').disabled=true;$('close-reveal').textContent='Drawing…';modal.showModal();
+ let soundtrack;const totalSeconds=players.length*2+.55;
  try{
- $('status').textContent='The names are spinning…';if(!reduced)shuffler=setInterval(()=>scrambleNames(remaining),360);
- await pause(27000);clearInterval(shuffler);$('reveal-title').textContent='Your next chapter is calling';
- for(const {player,tribe} of schedule){
- const source=Array.from($('scramble-names').children).find(el=>el.dataset.playerId===String(player.id));
- if(source){source.classList.add('selected-name');source.scrollIntoView({block:'nearest',behavior:'instant'})}
- $('reveal-status').textContent=player.name+' → '+tribeNames[tribe];
- await pause(reduced?180:650);
- const target=$('reveal-team-'+tribe),li=document.createElement('li');li.textContent=player.name;li.className='landed';target.append(li);
- if(source&&!reduced){const from=source.getBoundingClientRect(),to=li.getBoundingClientRect(),fly=document.createElement('span');fly.className='flying-name';fly.textContent=player.name;fly.style.left=from.left+'px';fly.style.top=from.top+'px';fly.style.width=from.width+'px';modal.append(fly);source.style.visibility='hidden';const animation=fly.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:'translate('+((to.left+to.width/2)-(from.left+from.width/2))+'px,'+(to.top-from.top)+'px) scale(.85)',opacity:.15}],{duration:700,easing:'cubic-bezier(.4,0,.25,1)'});await animation.finished;fly.remove()}
- source?.remove();remaining.splice(remaining.findIndex(p=>p.id===player.id),1);teams[tribe].push(player);renderTeams();$('reveal-count-'+tribe).textContent=teams[tribe].length;
- document.querySelectorAll('.reveal-team').forEach((el,i)=>el.classList.toggle('receiving',i===tribe));await pause(reduced?120:450);
+ drawAudioContext ||= new AudioContext();await drawAudioContext.resume();
+ if(!drawAudioContext.drawBuffer){const response=await fetch($('draw-music').src);drawAudioContext.drawBuffer=await drawAudioContext.decodeAudioData(await response.arrayBuffer())}
+ soundtrack=drawAudioContext.createBufferSource();soundtrack.buffer=drawAudioContext.drawBuffer;soundtrack.playbackRate.value=soundtrack.buffer.duration/totalSeconds;soundtrack.connect(drawAudioContext.destination);
+ }catch{soundtrack=null}
+ const start=performance.now();if(soundtrack)soundtrack.start();
+ const until=async ms=>{const delay=start+ms-performance.now();if(delay>0)await pause(delay)};
+ try{
+ $('status').textContent='The wheel is spinning…';
+ for(let index=0;index<schedule.length;index++){
+ const {player,tribe}=schedule[index],dropAt=(index+1)*2000;
+ $('reveal-status').textContent='Spinning • '+remaining.length+' castaways remaining';
+ const {animation,source}=wheelNames(remaining,player,reduced,Math.max(1,dropAt-(performance.now()-start)));
+ await until(dropAt);animation.finish();$('reveal-status').textContent=player.name+' → '+tribeNames[tribe];
+ const li=document.createElement('li');li.textContent=player.name;li.style.visibility='hidden';$('reveal-team-'+tribe).append(li);
+ if(!reduced){const from=source.getBoundingClientRect(),to=li.getBoundingClientRect(),fly=document.createElement('span');fly.className='flying-name';fly.textContent=player.name;fly.style.left=from.left+'px';fly.style.top=from.top+'px';fly.style.width=from.width+'px';modal.append(fly);source.style.visibility='hidden';fly.animate([{transform:'translate(0,0)',opacity:1},{transform:'translate('+((to.left+to.width/2)-(from.left+from.width/2))+'px,'+(to.top-from.top)+'px) scale(.85)',opacity:.1}],{duration:550,easing:'ease-in',fill:'forwards'});await until(dropAt+550);fly.remove()}else await until(dropAt+550);
+ li.style.visibility='';li.className='landed';remaining.splice(remaining.findIndex(p=>p.id===player.id),1);teams[tribe].push(player);renderTeams();$('reveal-count-'+tribe).textContent=teams[tribe].length;
+ document.querySelectorAll('.reveal-team').forEach((el,i)=>el.classList.toggle('receiving',i===tribe));
  }
  $('scramble-names').replaceChildren();$('reveal-title').textContent='The new tribes are set';$('reveal-status').textContent=teams[0].length+' Kidlat. '+teams[1].length+' Lakas. A new chapter begins.';$('status').textContent='The tribes are set. A new chapter begins.';celebrate();return teams.map((members,i)=>({tribe:tribeNames[i],members:members.map(p=>p.name)}));
- }finally{clearInterval(shuffler);drawing=false;document.querySelectorAll('.receiving').forEach(el=>el.classList.remove('receiving'));$('close-reveal').disabled=false;$('close-reveal').textContent='View the tribes';$('draw').innerHTML='<span>✦</span> Draw again';renderPool()}
+ }finally{if(soundtrack){try{soundtrack.stop()}catch{}}drawing=false;document.querySelectorAll('.receiving').forEach(el=>el.classList.remove('receiving'));$('close-reveal').disabled=false;$('close-reveal').textContent='View the tribes';$('draw').innerHTML='<span>✦</span> Draw again';renderPool()}
 }
 $('close-reveal').onclick=()=>{if(!drawing){$('draw-window').close();$('draw').focus()}};
 $('draw-window').addEventListener('cancel',event=>{if(drawing)event.preventDefault()});
