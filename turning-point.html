@@ -45,18 +45,18 @@ async function draw(){
  drawing=true;teams=[[],[]];renderTeams();renderPool();$('draw').textContent='The wheel is spinning…';
  for(let i=0;i<2;i++){$('reveal-team-'+i).replaceChildren();$('reveal-count-'+i).textContent='0'}
  $('reveal-title').textContent='Let the wheel decide';$('reveal-status').textContent='Preparing the draw…';$('close-reveal').disabled=true;$('close-reveal').textContent='Drawing…';modal.showModal();
- let soundtrack;const totalSeconds=players.length*2+.55;
+ let soundtrack;let totalSeconds=27;
  try{
  drawAudioContext ||= new AudioContext();await drawAudioContext.resume();
  if(!drawAudioContext.drawBuffer){const response=await fetch($('draw-music').src);drawAudioContext.drawBuffer=await drawAudioContext.decodeAudioData(await response.arrayBuffer())}
- soundtrack=drawAudioContext.createBufferSource();soundtrack.buffer=drawAudioContext.drawBuffer;soundtrack.playbackRate.value=soundtrack.buffer.duration/totalSeconds;soundtrack.connect(drawAudioContext.destination);
+ soundtrack=drawAudioContext.createBufferSource();soundtrack.buffer=drawAudioContext.drawBuffer;totalSeconds=soundtrack.buffer.duration;soundtrack.connect(drawAudioContext.destination);
  }catch{soundtrack=null}
  const start=performance.now();if(soundtrack)soundtrack.start();
  const until=async ms=>{const delay=start+ms-performance.now();if(delay>0)await pause(delay)};
  try{
  $('status').textContent='The wheel is spinning…';
  for(let index=0;index<schedule.length;index++){
- const {player,tribe}=schedule[index],dropAt=(index+1)*2000;
+ const {player,tribe}=schedule[index],dropAt=(index+1)*(totalSeconds*1000-550)/schedule.length;
  $('reveal-status').textContent='Spinning • '+remaining.length+' castaways remaining';
  const {animation,source}=wheelNames(remaining,player,reduced,Math.max(1,dropAt-(performance.now()-start)));
  await until(dropAt);animation.finish();$('reveal-status').textContent=player.name+' → '+tribeNames[tribe];
@@ -65,7 +65,7 @@ async function draw(){
  li.style.visibility='';li.className='landed';remaining.splice(remaining.findIndex(p=>p.id===player.id),1);teams[tribe].push(player);renderTeams();$('reveal-count-'+tribe).textContent=teams[tribe].length;
  document.querySelectorAll('.reveal-team').forEach((el,i)=>el.classList.toggle('receiving',i===tribe));
  }
- $('scramble-names').replaceChildren();$('reveal-title').textContent='The new tribes are set';$('reveal-status').textContent=teams[0].length+' Kidlat. '+teams[1].length+' Lakas. A new chapter begins.';$('status').textContent='The tribes are set. A new chapter begins.';celebrate();return teams.map((members,i)=>({tribe:tribeNames[i],members:members.map(p=>p.name)}));
+ $('scramble-names').replaceChildren();$('reveal-title').textContent='The new tribes are set';$('reveal-status').textContent=teams[0].length+' Kidlat. '+teams[1].length+' Lakas. A new chapter begins.';$('status').textContent='The tribes are set. A new chapter begins.';modal.close();$('draw').focus();celebrate();return teams.map((members,i)=>({tribe:tribeNames[i],members:members.map(p=>p.name)}));
  }finally{if(soundtrack){try{soundtrack.stop()}catch{}}drawing=false;document.querySelectorAll('.receiving').forEach(el=>el.classList.remove('receiving'));$('close-reveal').disabled=false;$('close-reveal').textContent='View the tribes';$('draw').innerHTML='<span>✦</span> Draw again';renderPool()}
 }
 $('close-reveal').onclick=()=>{if(!drawing){$('draw-window').close();$('draw').focus()}};
